@@ -1,6 +1,7 @@
-moviepy==1.0.3
-openai-whisper==20231117
+moviepy==2.1.2
+faster-whisper==1.0.3
 transformers==4.36.0
-torch==2.1.0
+torch==2.4.0
 streamlit==1.29.0
-sqlite3  # 內建
+ctranslate2==4.1.0  # faster-whisper 依賴
+pandas==2.1.4  # 資料庫顯示
