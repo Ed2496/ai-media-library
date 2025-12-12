@@ -2,12 +2,14 @@ import streamlit as st
 import os
 import sqlite3
 from moviepy.editor import VideoFileClip
-from faster_whisper import WhisperModel
-from transformers import pipeline
+from openai import OpenAI
 from datetime import datetime
 import pandas as pd
 
 st.set_page_config(page_title="AI 媒體處理庫", page_icon="🎬")
+
+# OpenAI API key
+client = OpenAI(api_key=st.secrets.get("OPENAI_API_KEY", "your-key-here"))  # 放 secrets
 
 # 初始化資料庫
 def init_db():
@@ -23,7 +25,7 @@ conn = init_db()
 categories = ["技術", "AI新聞", "詐騙", "AI影音"]
 
 st.title("AI 媒體處理庫 (NotebookLM 風格)")
-st.write("上傳 MP4 → 自動轉逐字稿 + AI 分類 + 存庫 (3.13 終極版)")
+st.write("上傳 MP4 → 雲端轉逐字稿 + GPT 分類 + 存庫 (3.13 綠燈版)")
 
 uploaded = st.file_uploader("選擇 MP4 檔案", type=["mp4"])
 
@@ -40,15 +42,24 @@ if uploaded and st.button("開始處理"):
         video.audio.write_audiofile(mp3_path, verbose=False, logger=None)
         video.close()
 
-        # 3. 轉文字 (faster-whisper 3.13 版)
-        model = WhisperModel("base", device="cpu", compute_type="int8")
-        segments, _ = model.transcribe(mp3_path, language="zh")
-        transcript = " ".join([s.text for s in segments])
+        # 3. 雲端轉文字 (OpenAI Whisper API)
+        with open(mp3_path, "rb") as audio_file:
+            transcript_response = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+                language="zh"
+            )
+        transcript = transcript_response.text
 
-        # 4. 分類
-        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-        result = classifier(transcript, categories)
-        category = result["labels"][0]
+        # 4. GPT 分類
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "你是分類專家。根據內容分類為：技術、AI新聞、詐騙、AI影音。只回類別名稱。"},
+                {"role": "user", "content": transcript}
+            ]
+        )
+        category = response.choices[0].message.content.strip()
 
         # 5. 存檔 + DB
         txt_name = f"{category}_{uploaded.name.replace('.mp4', '.txt')}"
