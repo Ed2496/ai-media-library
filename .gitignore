@@ -1,0 +1,4 @@
+temp_*.mp4
+temp_*.mp3
+*.db
+__pycache__/
