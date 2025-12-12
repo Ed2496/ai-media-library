@@ -1,7 +1,7 @@
+streamlit==1.29.0
 moviepy==2.1.2
 faster-whisper==1.0.3
-transformers==4.36.0
-torch==2.4.0
-streamlit==1.29.0
-ctranslate2==4.1.0  # faster-whisper 依賴
-pandas==2.1.4  # 資料庫顯示
+transformers==4.45.1
+torch==2.5.0
+ctranslate2==4.4.0
+pandas==2.2.0
