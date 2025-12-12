@@ -2,9 +2,10 @@ import streamlit as st
 import os
 import sqlite3
 from moviepy.editor import VideoFileClip
-import whisper
+from faster_whisper import WhisperModel
 from transformers import pipeline
 from datetime import datetime
+import pandas as pd
 
 # 初始化資料庫
 @st.cache_resource
@@ -22,15 +23,16 @@ def extract_mp3(mp4_path, mp3_path):
     video.audio.write_audiofile(mp3_path, codec='mp3')
     video.close()
 
-# 轉逐字稿
+# 轉逐字稿 (faster-whisper 3.13 兼容)
 @st.cache_resource
 def load_whisper():
-    return whisper.load_model("base")
+    return WhisperModel("base", device="cpu", compute_type="int8")
 
 def transcribe_mp3(mp3_path):
     model = load_whisper()
-    result = model.transcribe(mp3_path)
-    return result["text"]
+    segments, info = model.transcribe(mp3_path, beam_size=5)
+    transcript = " ".join([segment.text for segment in segments])
+    return transcript
 
 # AI 分類
 @st.cache_resource
@@ -66,7 +68,7 @@ def process_mp4(uploaded_file):
     conn.commit()
     conn.close()
     
-    # 清理 temp
+    # 清理
     os.remove(mp4_path)
     os.remove(mp3_path)
     
@@ -74,7 +76,7 @@ def process_mp4(uploaded_file):
 
 # Streamlit 介面
 st.title("AI 媒體處理庫 (NotebookLM 式)")
-st.write("上傳 MP4，自動轉逐字稿 + 分類 + 存庫")
+st.write("上傳 MP4，自動轉逐字稿 + 分類 + 存庫 (Python 3.13 優化版)")
 
 uploaded_file = st.file_uploader("選擇 MP4 檔案", type="mp4")
 
@@ -86,7 +88,7 @@ if uploaded_file is not None:
             st.download_button("下載逐字稿", data=open(txt_path, "r", encoding="utf-8").read(), file_name=txt_path)
             st.text_area("逐字稿預覽", transcript, height=200)
 
-# 資料庫查詢
+# 資料庫瀏覽
 st.header("資料庫瀏覽")
 conn = init_db()
 df = pd.read_sql_query("SELECT * FROM transcripts ORDER BY timestamp DESC", conn)
@@ -96,7 +98,7 @@ if not df.empty:
     selected_transcript = df[df['filename'] == selected]['transcript'].iloc[0]
     st.text_area("完整內容", selected_transcript)
 
-# 匯出所有
+# 匯出
 if st.button("匯出所有逐字稿 (CSV)"):
     df.to_csv("library.csv", index=False)
     st.download_button("下載 CSV", data=open("library.csv", "rb").read(), file_name="media_library.csv")
