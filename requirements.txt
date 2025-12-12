@@ -3,5 +3,5 @@ moviepy==2.1.2
 faster-whisper==1.0.3
 transformers==4.45.1
 torch==2.5.0
-ctranslate2==4.4.0
+ctranslate2==4.6.2
 pandas==2.2.0
