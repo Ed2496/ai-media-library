@@ -20,14 +20,10 @@ def init_db():
 
 conn = init_db()
 
-# 載入模型
-whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
-classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-
 categories = ["技術", "AI新聞", "詐騙", "AI影音"]
 
 st.title("AI 媒體處理庫 (NotebookLM 風格)")
-st.write("上傳 MP4 → 自動轉逐字稿 + AI 分類 + 存庫 (3.13 優化版)")
+st.write("上傳 MP4 → 自動轉逐字稿 + AI 分類 + 存庫 (3.13 終極版)")
 
 uploaded = st.file_uploader("選擇 MP4 檔案", type=["mp4"])
 
@@ -44,11 +40,13 @@ if uploaded and st.button("開始處理"):
         video.audio.write_audiofile(mp3_path, verbose=False, logger=None)
         video.close()
 
-        # 3. 轉文字
-        segments, _ = whisper_model.transcribe(mp3_path, language="zh")
+        # 3. 轉文字 (faster-whisper 3.13 版)
+        model = WhisperModel("base", device="cpu", compute_type="int8")
+        segments, _ = model.transcribe(mp3_path, language="zh")
         transcript = " ".join([s.text for s in segments])
 
         # 4. 分類
+        classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
         result = classifier(transcript, categories)
         category = result["labels"][0]
 
