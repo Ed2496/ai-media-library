@@ -20,19 +20,14 @@ def init_db():
 
 conn = init_db()
 
-# 載入模型（不 cache，避開 Streamlit bug）
-@st.experimental_singleton
-def load_models():
-    whisper = WhisperModel("base", device="cpu", compute_type="int8")
-    classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-    return whisper, classifier
-
-whisper_model, classifier = load_models()
+# 載入模型
+whisper_model = WhisperModel("base", device="cpu", compute_type="int8")
+classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 categories = ["技術", "AI新聞", "詐騙", "AI影音"]
 
-st.title("AI 媒體處理庫（NotebookLM 風格）")
-st.write("上傳 MP4 → 自動轉逐字稿 + AI 分類 + 存庫")
+st.title("AI 媒體處理庫 (NotebookLM 風格)")
+st.write("上傳 MP4 → 自動轉逐字稿 + AI 分類 + 存庫 (3.13 優化版)")
 
 uploaded = st.file_uploader("選擇 MP4 檔案", type=["mp4"])
 
@@ -78,7 +73,7 @@ if uploaded and st.button("開始處理"):
 # 資料庫瀏覽
 st.divider()
 st.subheader("我的媒體庫")
-df = pd.read_sql_query("SELECT * FROM files ORDER BY date DESC", conn)
+df = pd.read_sql_query("SELECT * FROM files ORDER BY date DESC LIMIT 10", conn)
 if not df.empty:
     st.dataframe(df, use_container_width=True)
     selected = st.selectbox("查看內容", df["filename"])
@@ -86,3 +81,9 @@ if not df.empty:
     st.text_area("完整逐字稿", content, height=400)
 else:
     st.info("還沒有檔案，上傳第一個開始吧！")
+
+# 匯出
+if st.button("匯出所有 (CSV)"):
+    all_df = pd.read_sql_query("SELECT * FROM files ORDER BY date DESC", conn)
+    csv = all_df.to_csv(index=False).encode('utf-8')
+    st.download_button("下載 CSV", csv, "media_library.csv", "text/csv")
